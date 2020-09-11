@@ -1,0 +1,340 @@
+// 1. USING SYSTEM//////////////
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Data.SqlClient;
+using System.Data.OleDb;
+using System.Windows.Forms;
+using System.Runtime.InteropServices;
+using System.Diagnostics;
+using System.Collections;
+using System.Drawing.Imaging;
+using System.Drawing.Configuration;
+
+using System.IO;
+using System.Text.RegularExpressions;
+using Microsoft.Office.Interop.Excel;
+//1a. USING AFORGE, EMGU CV /////////////////////////////////
+using AForge.Imaging.Filters;
+using AForge.Imaging.ComplexFilters;
+using Emgu.CV;
+using Emgu.CV.Structure;
+using Emgu.CV.Util;
+using Emgu.CV.Features2D;
+using Emgu.CV.XFeatures2D;
+
+// 2. LOAD DATA FROM EXCEL IN FORM_LOAD///////
+ public System.Data.DataTable dt = new System.Data.DataTable();
+   dt.Columns.Add("Mã nhân viên 사번", typeof(string));
+   dt.Columns.Add("Người nhận việc 성명", typeof(string));
+   dt.Columns.Add("Bộ phận 부서", typeof(string));
+String constr = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" +"LMD_CLASS_A.xlsx" +"; Extended Properties = 'Excel 12.0;HDR=Yes;IMEX=1;'";
+ OleDbConnection cnnxls = new OleDbConnection(constr);
+ OleDbDataAdapter oda = new OleDbDataAdapter("select * from [" + textBox8.Text + "$]", cnnxls);
+ oda.Fill(dt);
+ dataGridView1.DataSource = dt;
+//2a. LOAD DATA FROM EXCEL WITH OPENFILEDIALOG //////////
+try
+            {
+                OpenFileDialog ofd = new OpenFileDialog();
+                ofd.Filter = "Excel Files | *.xlsx;*.xls;*.xlsm";
+
+                if (ofd.ShowDialog() == DialogResult.OK)
+                {
+                    this.textBox2.Text = ofd.FileName;
+                }
+                    
+                        String constr = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" +
+                                        textBox2.Text +
+                                        //";Extended Properties= \"Excel 12.0 XML;HDR=YES;\";";
+                "; Extended Properties = 'Excel 12.0;HDR=Yes;IMEX=1;'";
+
+                      
+                OleDbConnection cnnxls = new OleDbConnection(constr);
+                OleDbDataAdapter oda = new OleDbDataAdapter("select * from ["+textBox8.Text+ "$]", cnnxls); /* textBox8.Text = Sheet1*/
+               
+                oda.Fill(dt);
+
+                dataGridView1.DataSource = dt;
+               
+                }
+            
+            catch (Exception ex) { string errormsg = ex.ToString(); }
+// 2b. EXPORTEXCEL FUNCTION///////////////////////////////////////
+ if (myDGV.Rows.Count > 0)
+            {
+                string saveFileName = "";
+                SaveFileDialog saveDialog = new SaveFileDialog();
+                saveDialog.DefaultExt = "xlsx";
+                saveDialog.Filter = "Excel File|*.xlsx";
+                saveDialog.FileName = fileName;
+                saveDialog.ShowDialog();
+                saveFileName = saveDialog.FileName;
+                if (saveFileName.IndexOf(":") < 0) return;
+                Microsoft.Office.Interop.Excel.Application xlApp = new Microsoft.Office.Interop.Excel.Application();
+                if (xlApp == null)
+                {
+                    MessageBox.Show("can not create excel, your PC may not install the excel");
+                    return;
+                }
+
+                Microsoft.Office.Interop.Excel.Workbooks workbooks = xlApp.Workbooks;
+                Microsoft.Office.Interop.Excel.Workbook workbook = workbooks.Add(Microsoft.Office.Interop.Excel.XlWBATemplate.xlWBATWorksheet);
+                Microsoft.Office.Interop.Excel.Worksheet worksheet = (Microsoft.Office.Interop.Excel.Worksheet)workbook.Worksheets[1];
+
+                for (int i = 0; i < myDGV.ColumnCount; i++)
+                {
+                    worksheet.Cells[1, i + 1] = myDGV.Columns[i].HeaderText;
+                }
+
+                for (int r = 0; r < myDGV.Rows.Count; r++)
+                {
+                    for (int i = 0; i < myDGV.ColumnCount; i++)
+                    {
+                        worksheet.Cells[r + 2, i + 1] = myDGV.Rows[r].Cells[i].Value;
+                    }
+
+                    // System.Windows.Forms.Application.DoEvents();
+                 
+
+                }
+                worksheet.Columns.EntireColumn.AutoFit();
+
+                if (saveFileName != "")
+                {
+                    try
+                    {
+                        workbook.Saved = true;
+                        workbook.SaveCopyAs(saveFileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("export error, the file may be opened now\n" + ex.Message);
+                    }
+
+                }
+                xlApp.Quit();
+                GC.Collect();
+                MessageBox.Show(fileName + " saved successfully", "Announcement", MessageBoxButtons.OK);
+            }
+            else
+            {
+                MessageBox.Show("the datagridview is empty", "Announcement", MessageBoxButtons.OK);
+            }
+
+//3. DATE TIME PICKER && TIME FORMAT ////////////
+ dateTimePicker2.Format = DateTimePickerFormat.Custom;
+ dateTimePicker5.Format = DateTimePickerFormat.Time;
+ dateTimePicker5.Enabled = true;
+ dateTimePicker2.Enabled = true;
+ dataGridView1.Columns[6].DefaultCellStyle.Format = "dd/MM/yyyy hh:mm:ss tt";
+ dataGridView1.Columns[7].DefaultCellStyle.Format = "dd/MM/yyyy hh:mm:ss tt";
+TimeSpan time_v = Convert.ToDateTime(row.Cells[7].Value) - Convert.ToDateTime(DateTime.Now);
+ row.Cells[10].Value = time_v.Days + " days " + time_v.Hours + " hours" + time_v.Minutes + " minutes";
+ DateTime ngay_nhan_viec = dateTimePicker1.Value.Date + dateTimePicker4.Value.TimeOfDay;
+ DateTime ngay_hoan_thanh = dateTimePicker2.Value.Date + dateTimePicker5.Value.TimeOfDay;
+ DateTime deadline = dateTimePicker3.Value.Date + dateTimePicker6.Value.TimeOfDay;
+//4. DATAGRIDVIEW CELLS VALUE & BACK COLOR
+  foreach (DataGridViewRow row in dataGridView1.Rows)
+            {
+                if ((row.Cells[7].Value != null) && (row.Cells[13].Value.ToString() == "cancel"))
+                {
+                    row.DefaultCellStyle.BackColor = Color.RoyalBlue;
+                }
+                else
+                {
+                    if ((row.Cells[7].Value != null) && (row.Cells[11].Value.ToString() == ""))
+                    {
+                        TimeSpan time_v = Convert.ToDateTime(row.Cells[7].Value) - Convert.ToDateTime(DateTime.Now);
+                        row.Cells[10].Value = time_v.Days + " days " + time_v.Hours + " hours" + time_v.Minutes + " minutes";
+                        if (Convert.ToDateTime(row.Cells[7].Value) < Convert.ToDateTime(DateTime.Now))
+                        {
+                            row.DefaultCellStyle.BackColor = Color.Red;
+                            row.Cells[12].Value = "Overtime";
+                        }
+                        else { row.DefaultCellStyle.BackColor = Color.White; }
+if (row.Cells[4].Value.ToString() == "B")
+                        {
+                            row.Cells[15].Value = (80 + 80 * (time_a.TotalMinutes / time_b.TotalMinutes));
+                        }
+//5. DELETE ROWS IN DATAGRIDVIEW ////////////////////
+if (textBox24.Text == "minh_xoa")
+            {
+                foreach (DataGridViewRow item in this.dataGridView1.SelectedRows)
+                {
+                    dataGridView1.Rows.RemoveAt(item.Index);
+                }
+
+            }
+            else
+            {
+                MessageBox.Show("wrong password");
+            }
+// 5a. DELETE ALL UPDATED INFORMATION ////////////
+ System.Data.DataTable dt = this.dataGridView1.DataSource as System.Data.DataTable;
+
+            dt.RejectChanges();
+            textBox1.Text = "";
+//6. MESSAGEBOX SHOW & NEW LINE ///////////////////////////
+ MessageBox.Show("1.On deadline the tasks of level A get 100 points, B get 80 points, C get 60 points, D get 40 points, E get 20 points  "
+               + Environment.NewLine +"2.Before deadline the points will be increased according to finished date"
+              + Environment.NewLine
+               + "3.After deadline the points will be decreased according to finished date");
+//7. TEXTBOX, DO NOT ALLOW TO FILL INFORMATION INTO TEXTBOX /////////////////////////////
+ MessageBox.Show("This field is applied for System ");
+ textBox7.Text = textBox7.Text.Remove(textBox7.Text.Length - 1);
+//7a. TEXTBOX FILTER IN DATAGRIDVIEW //////////////////////////
+string filter_bophan = "Bộ phận 부서";
+ dt.DefaultView.RowFilter = string.Format("Convert([{0}], 'System.String') LIKE '%{1}%'", filter_bophan, textBox16.Text);
+//7b. TEXTBOX ALLOW TO FILL ONLY NUMBERS
+private void textBox2_TextChanged_1(object sender, EventArgs e)
+        {
+            if (System.Text.RegularExpressions.Regex.IsMatch(textBox2.Text, "[^0-9]"))
+            {
+                MessageBox.Show("Please enter only numbers.");
+                textBox2.Text = textBox2.Text.Remove(textBox2.Text.Length - 1);
+            }
+        }
+//8. PICTUREBOX LOAD IMAGE INTO PICTUREBOX //////////////////////////
+ private void picture1_show(Bitmap Image_in)
+        {
+            // Bitmap Image_in;
+            pictureBox1.Image = Image_in;
+            pictureBox1.SizeMode = PictureBoxSizeMode.StretchImage;
+
+
+        }
+  bmp = new Bitmap(Image.FromFile(@"Images\School1.png"));
+            picture1_show(bmp);
+//9. PRINTDOCUMENT///////////////////////
+   private void printDocument1_PrintPage(object sender, System.Drawing.Printing.PrintPageEventArgs e)
+        {
+            Bitmap bm = new Bitmap(this.dataGridView1.Width, this.dataGridView1.Height);
+            dataGridView1.DrawToBitmap(bm, new Rectangle(0, 0, this.dataGridView1.Width, this.dataGridView1.Height));
+            e.Graphics.DrawImage(bm, 0, 0);
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            printDocument1.Print();
+
+        }
+//9a. PRINT DIALOG OPTION//////////////////////////////
+             PrintDialog PrintDialog1 = new PrintDialog();
+             System.Drawing.Printing.PrintDocument docToPrint = new System.Drawing.Printing.PrintDocument();
+             docToPrint.DocumentName = "Print Document";
+             
+             printDialog1.Document = docToPrint;
+             printDialog1.AllowSelection = true;
+             printDialog1.AllowSomePages = true;
+             if (printDialog1.ShowDialog() == DialogResult.OK) docToPrint.Print();
+//10. SQL CONNECTION LOAD TABLE FROM SQL TO DATAGRIDVIEW //////////////////////////
+        SqlConnection sql_con = new SqlConnection();
+        SqlDataAdapter sql_da = new SqlDataAdapter();
+        SqlCommand sql_cmd = new SqlCommand();
+ sql_con.ConnectionString = "Data Source=.\\MSSQLSERVER01;Database=TutorialDB;trusted_connection=true;";
+          
+            sql_con.Open();
+            try
+            {
+                //initialize a new instance of sqlcommand
+                sql_cmd = new SqlCommand();
+                //set a connection used by this instance of sqlcommand
+                sql_cmd.Connection = sql_con;
+                //set the sql statement to execute at the data source
+                //sql_cmd.CommandText = "Select ID, Name, UNAME as 'Username',UTYPE as 'Role' FROM tbluser";
+                sql_cmd.CommandText = "Select * FROM Customers";
+
+
+                //initialize a new instance of sqlDataAdapter
+                sql_da = new SqlDataAdapter();
+                //set the sql statement or stored procedure to execute at the data source
+                sql_da.SelectCommand = sql_cmd;
+                //initialize a new instance of DataTable
+                dt = new DataTable();
+                //add or resfresh rows in the certain range in the datatable to match those in the data source.
+                sql_da.Fill(dt);
+                //set the data source to display the data in the dataGridView
+                dataGridView1.DataSource = dt;
+            }
+            catch (Exception ex)
+            {
+                //catching error 
+                MessageBox.Show(ex.Message);
+            }
+            //release all resources used by the component
+            sql_da.Dispose();
+            //clossing connection
+            sql_con.Close();
+//10a. SQL CONNECTION SAVE DATA FROM DATAGRIDVIEW TO TABLE IN SQL (TABLE MUST BE CREATED BEFORE)/////////////////////
+ string constring = "Data Source=.\\MSSQLSERVER01;Database=TutorialDB;trusted_connection=true;";
+            using (SqlConnection connect = new SqlConnection(constring))
+            {
+                using (SqlCommand command = new SqlCommand())
+                {
+                    command.Connection = connect;
+                    command.CommandText = "insert into TEST(Menu,Price,Quantity,Discount,Total,VAT) values(@Menu, @Price,@Quantity,@Discount,@Total,@VAT)";
+
+                    command.Parameters.Add(new SqlParameter("@Menu", SqlDbType.VarChar));
+                    command.Parameters.Add(new SqlParameter("@Price", SqlDbType.VarChar));
+                    command.Parameters.Add(new SqlParameter("@Quantity", SqlDbType.VarChar));
+                    command.Parameters.Add(new SqlParameter("@Discount", SqlDbType.VarChar));
+                    command.Parameters.Add(new SqlParameter("@Total", SqlDbType.VarChar));
+                    command.Parameters.Add(new SqlParameter("@VAT", SqlDbType.VarChar));
+                    connect.Open();
+                    foreach (DataGridViewRow row in dataGridView1.Rows)
+                    {
+                        if (!row.IsNewRow)
+                        {
+                            command.Parameters["@Menu"].Value = row.Cells[0].Value;
+                            command.Parameters["@Price"].Value = row.Cells[1].Value;
+                            command.Parameters["@Quantity"].Value = row.Cells[2].Value;
+                            command.Parameters["@Discount"].Value = row.Cells[3].Value;
+                            command.Parameters["@Total"].Value = row.Cells[4].Value;
+                            command.Parameters["@VAT"].Value = row.Cells[5].Value;
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                }
+
+
+// 11. CREATE BUTTON BY CLICK //////////////////////////////////////
+            Button btn = new Button();
+            btn.Location = new Point(0, 500);
+            btn.Text = textBox1.Text;
+            
+            this.Controls.Add(btn);
+// 12. MOUSE CLICK FORM & PICTUREBOX////////////////////////////
+  /// start
+  InitializeComponent();
+            this.MouseDown += new MouseEventHandler(this.form1_click);
+            pictureBox1.MouseClick += pictureBox1_MouseClick;
+  /// form
+ private void form1_click(object sender, EventArgs e)
+        {
+            // Get the mouse position.
+            Point pt = MousePosition;
+            textBox6.Text = pt.X.ToString();
+            textBox7.Text = pt.Y.ToString();
+        }
+/// picturebox
+  public void pictureBox1_MouseClick(object sender, MouseEventArgs e)
+        {
+            Color c;
+            byte rgb;
+            textBox6.Text = e.X.ToString();
+            textBox7.Text = e.Y.ToString();
+            bmp = new Bitmap(resizeImage(bmp, pictureBox1.Width, pictureBox1.Height));
+            c = bmp.GetPixel(e.X, e.Y);
+            rgb = (byte)(.299 * c.R + .587 * c.G + .114 * c.B);
+            textBox8.Text = c.R.ToString();
+            textBox9.Text = c.G.ToString();
+            textBox10.Text = c.B.ToString();
+            textBox11.Text = rgb.ToString();
+        }
